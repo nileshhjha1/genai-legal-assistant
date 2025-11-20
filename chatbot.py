@@ -115,40 +115,13 @@ class SmartLegalChatbot:
             return self._fallback_approach(question)
 
     def _has_relevant_documents(self, question, docs):
-        """Check if the found documents are actually relevant to the question"""
+        """Always use RAG if we have documents from the vector store"""
         if not docs:
             return False
 
-        question_lower = question.lower()
-
-        # Extract expected legal terms from question
-        expected_articles = re.findall(r'article\s+(\d+[a-z]*)', question_lower)
-        expected_sections = re.findall(r'section\s+(\d+[a-z]*)', question_lower)
-
-        # Check if any document contains the specific articles/sections mentioned in question
-        for doc in docs:
-            content_lower = doc.page_content.lower()
-
-            # Check for specific article matches
-            for article in expected_articles:
-                if f'article {article}' in content_lower:
-                    return True
-
-            # Check for specific section matches
-            for section in expected_sections:
-                if f'section {section}' in content_lower:
-                    return True
-
-            # Check for general relevance based on keywords
-            relevant_keywords = ['constitution', 'ipc', 'fundamental right', 'punishment', 'law']
-            question_keywords = question_lower.split()
-            matching_keywords = [kw for kw in question_keywords if kw in relevant_keywords]
-
-            if len(matching_keywords) > 1:
-                return True
-
-        # If no specific matches found, consider documents not highly relevant
-        return False
+        # If we found documents in the vector store, they're relevant enough
+        logger.info(f"Using RAG with {len(docs)} documents found")
+        return True
 
     def _rag_approach(self, question, docs):
         """Use RAG approach with the found documents"""
