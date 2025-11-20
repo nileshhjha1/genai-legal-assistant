@@ -13,7 +13,8 @@ NyayAI is an intelligent legal assistant that provides comprehensive information
 - **Pinecone Vector Database**: Efficient document storage and retrieval
 - **Google Gemini Integration**: Advanced AI responses
 ![WhatsApp Image 2025-11-19 at 12 50 42 AM](https://github.com/user-attachments/assets/202b59d5-9e41-42ba-ac74-6e644733ada7)
-![WhatsApp Image 2025-11-19 at 12 52 48 AM](https://github.com/user-attachments/assets/6376489c-3dbc-414e-9fdb-5b476ddfb001)
+![WhatsApp Image 2025-11-20 at 11 04 43 AM](https://github.com/user-attachments/assets/a65eb5c2-e38e-4f95-b708-6bbd23ef9ad4)
+
 
 
 ## 📋 Prerequisites
