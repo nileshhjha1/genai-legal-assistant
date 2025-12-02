@@ -1,3 +1,4 @@
+
 import streamlit as st
 import os
 import sys
@@ -33,6 +34,10 @@ def initialize_session_state():
                 st.session_state.chatbot_initialized = False
         except:
             st.session_state.chatbot_initialized = False
+    if 'use_history' not in st.session_state:
+        st.session_state.use_history = True  # Enable conversation history by default
+    if 'conversation_cleared' not in st.session_state:
+        st.session_state.conversation_cleared = False
 
 
 def setup_vector_store():
@@ -93,6 +98,7 @@ def setup_vector_store():
         st.error(f"Error creating vector store: {str(e)}")
         st.session_state.setup_in_progress = False
         return False
+
 
 def delete_vector_store():
     """Delete existing vector store"""
@@ -197,6 +203,20 @@ def initialize_chatbot():
         return False
 
 
+def clear_conversation():
+    """Clear conversation history"""
+    try:
+        if st.session_state.chatbot:
+            st.session_state.chatbot.clear_conversation_history()
+        st.session_state.messages = []
+        st.session_state.conversation_cleared = True
+        st.success("Conversation history cleared!")
+        return True
+    except Exception as e:
+        st.error(f"Error clearing conversation: {str(e)}")
+        return False
+
+
 def display_sample_questions():
     """Display sample questions in sidebar"""
     st.sidebar.markdown("### Sample Questions")
@@ -259,7 +279,9 @@ def process_question(prompt):
         with st.chat_message("assistant"):
             with st.spinner("Searching legal documents..."):
                 try:
-                    response = st.session_state.chatbot.query(prompt)
+                    # Use conversation history if enabled
+                    use_history = st.session_state.get('use_history', True)
+                    response = st.session_state.chatbot.query(prompt, use_history=use_history)
 
                     st.markdown(response["answer"])
 
@@ -279,6 +301,10 @@ def process_question(prompt):
                         "sources": response.get("source_documents", [])
                     })
 
+                    # Reset conversation cleared flag
+                    if st.session_state.conversation_cleared:
+                        st.session_state.conversation_cleared = False
+
                 except Exception as e:
                     error_msg = f"Error processing your question: {str(e)}"
                     st.error(error_msg)
@@ -293,6 +319,32 @@ def process_question(prompt):
             "role": "assistant",
             "content": warning_msg
         })
+
+
+def display_conversation_controls():
+    """Display conversation controls"""
+    if st.session_state.setup_complete:
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("### Conversation Controls")
+
+        # Toggle for conversation history
+        use_history = st.sidebar.toggle(
+            "Enable Conversation Memory",
+            value=st.session_state.use_history,
+            help="When enabled, the chatbot will remember previous messages in the conversation"
+        )
+        st.session_state.use_history = use_history
+
+        if use_history:
+            st.sidebar.success("✓ Memory enabled")
+        else:
+            st.sidebar.warning("⚠ Memory disabled - each query is independent")
+
+        # Clear conversation button
+        if st.sidebar.button("🗑️ Clear Conversation",
+                             help="Clear conversation history and start fresh"):
+            if clear_conversation():
+                st.rerun()
 
 
 def main():
@@ -350,6 +402,9 @@ def main():
                 st.success("Chatbot initialized successfully!")
                 st.rerun()
 
+        # Conversation controls
+        display_conversation_controls()
+
         st.markdown("---")
         display_sample_questions()
         st.markdown("---")
@@ -366,6 +421,15 @@ def main():
         else:
             st.warning("⚠ Chatbot: Not Ready")
 
+        if st.session_state.use_history:
+            st.success("✓ Memory: Enabled")
+        else:
+            st.warning("⚠ Memory: Disabled")
+
+        # Show conversation stats
+        if st.session_state.chatbot_initialized and st.session_state.messages:
+            st.info(f"💬 Messages in current session: {len(st.session_state.messages)}")
+
         st.markdown("---")
         st.markdown("### About")
         st.markdown("""
@@ -374,19 +438,39 @@ def main():
         - Indian Penal Code (IPC)
         - Legal provisions and articles
 
+        **New Feature: Conversation Memory**
+        The chatbot now remembers previous questions and answers, allowing for follow-up questions and contextual conversations.
+
         **Instructions:**
         1. First, initialize the vector store
         2. Then, initialize the chatbot
         3. Start asking questions!
+        4. Use conversation controls to manage memory
 
         **Technology:**
-        - Local FAISS vector storage
+        - Pinecone vector storage
         - Google Gemini AI
+        - Conversation memory
         - Streamlit interface
         """)
 
     # Main chat interface
     st.subheader("Chat Interface")
+
+    # Display conversation memory status
+    if st.session_state.setup_complete:
+        if st.session_state.use_history:
+            st.info("💭 **Conversation memory is enabled** - The chatbot will remember previous messages")
+        else:
+            st.warning("🔁 **Conversation memory is disabled** - Each question is treated independently")
+
+        # Quick clear button in main area
+        if st.session_state.messages:
+            col1, col2 = st.columns([6, 1])
+            with col2:
+                if st.button("Clear Chat", type="secondary"):
+                    if clear_conversation():
+                        st.rerun()
 
     # Display chat history
     display_chat_history()
@@ -401,7 +485,7 @@ def main():
             "💡 **Getting Started:** Please initialize the vector store and chatbot using the sidebar setup buttons first.")
 
     # Show current status
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     with col1:
         if st.session_state.vector_initialized:
             st.success("Vector store is initialized")
@@ -413,6 +497,12 @@ def main():
             st.success("Chatbot is ready")
         else:
             st.warning("Chatbot not ready")
+
+    with col3:
+        if st.session_state.use_history:
+            st.success("Memory: Enabled")
+        else:
+            st.warning("Memory: Disabled")
 
     # Check if we have a user input from buttons
     if st.session_state.user_input:
